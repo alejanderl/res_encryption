@@ -12,23 +12,43 @@ gemfile(true) do
   gem 'dry-struct'
   gem 'dry-types'
   gem 'rspec'
-  gem "pry"
+  gem "byebug"
+  gem 'dry-monads'
 
 end
 
 require "ruby_event_store"
 require 'time'
 require 'json'
-require 'pry'
+require 'byebug'
 require 'dry-struct'
 require 'dry-types'
+require 'dry/monads'
 
-class MyEvent < RubyEventStore::Event
+Dry::Types.load_extensions(:maybe)
+module Types
+  include Dry::Types()
 end
 
+class MyEvent < RubyEventStore::Event
+
+  SCHEMA = Types::Hash.schema(
+    email: Types::Strict::String.maybe
+  )
+
+  def self.strict(data: nil, metadata: nil)
+    data = SCHEMA.(data)
+    new(data: data, metadata: metadata)
+  end
+
+  def self.encryption_schema
+    {
+      email: ->(data) { SecureRandom.uuid }
+    }
+  end
+end
 
 RSpec.describe "Make this thing work" do
-
   let(:store) { RubyEventStore::InMemoryRepository.new }
 
   let(:res_client) do
@@ -42,6 +62,6 @@ RSpec.describe "Make this thing work" do
   end
 
   it "works" do
-    binding.pry
+    res_client.publish MyEvent.strict(data: {email: "asdads"})
   end
 end
